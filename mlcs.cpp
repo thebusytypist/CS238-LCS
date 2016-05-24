@@ -112,12 +112,16 @@ int main(int argc, char* argv[]) {
     int* prev = score;
     int* cur = score + MAXSTRLEN;
     
-    int step = -1;
-    int y0 = lv - 1, y1 = -1;
+    // int step = -1;
+    // int y0 = lv - 1, y1 = -1;
     int yb0 = 0, yb1 = lv;
+    int step = 1;
+    int y0 = 0, y1 = lv;
 
-    Initialize(prev, u, v, lu - 1, y0, y1, step);
-    for (int i = lu - 2; i >= 0; --i) {
+    // Initialize(prev, u, v, lu - 1, y0, y1, step);
+    Initialize(prev, u, v, 0, y0, y1, step);
+    // for (int i = lu - 2; i >= 0; --i) {
+    for (int i = 1; i < lu; ++i) {
         Advance(
             prev, cur, u, v,
             i,
@@ -127,7 +131,8 @@ int main(int argc, char* argv[]) {
         swap(prev, cur);
     }
 
-    printf("%d\n", prev[0]);
+    // printf("%d\n", prev[0]);
+    printf("%d\n", prev[lv - 1]);
 
     return 0;
 }
