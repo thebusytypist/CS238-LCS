@@ -95,6 +95,65 @@ void Initialize(
     }
 }
 
+struct Context {
+    int* prev;
+    int* left;
+    int* right;
+    int* path;
+
+    const char* u;
+    const char* v;
+};
+
+void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
+    if (x1 - x0 <= 2)
+        return;
+
+    int m = (x0 + x1) / 2;
+
+    Initialize(ctx->left, ctx->u, ctx->v, x0, y0, y1, 1);
+    for (int i = 1; i <= m; ++i) {
+        Advance(
+            ctx->left, ctx->prev, ctx->u, ctx->v,
+            i,
+            y0, y1,
+            1,
+            y0, y1);
+        swap(ctx->left, ctx->prev);
+    }
+
+    Initialize(ctx->right, ctx->u, ctx->v, x1 - 1, y1 - 1, y0 - 1, -1);
+    for (int i = x1 - 2; i > m; --i) {
+        Advance(
+            ctx->right, ctx->prev, ctx->u, ctx->v,
+            i,
+            y1 - 1, y0 - 1,
+            -1,
+            y0, y1);
+        swap(ctx->right, ctx->prev);
+    }
+
+    int k = y0, l = ctx->left[y0] + ctx->right[y0];
+    for (int j = y0 + 1; j < y1; ++j) {
+        int t;
+        if (j == y1 - 1)
+            t = (x1 - m - 1) * SCORE_INDEL;
+        else
+            t = ctx->right[j + 1];
+
+        int n = ctx->left[j] + t;
+        if (n > l) {
+            l = n;
+            k = j;
+        }
+    }
+
+    ctx->path[m] = k;
+
+    Solve(ctx, x0, y0, m + 1, k + 1);
+    Solve(ctx, m, k, x1, y1);
+}
+
 int main(int argc, char* argv[]) {
     char str0[MAXSTRLEN], str1[MAXSTRLEN];
 
@@ -108,31 +167,24 @@ int main(int argc, char* argv[]) {
         swap(u, v);
     }
 
-    int score[2 * MAXSTRLEN];
-    int* prev = score;
-    int* cur = score + MAXSTRLEN;
-    
-    // int step = -1;
-    // int y0 = lv - 1, y1 = -1;
-    int yb0 = 0, yb1 = lv;
-    int step = 1;
-    int y0 = 0, y1 = lv;
+    int buffer[4 * MAXSTRLEN];
 
-    // Initialize(prev, u, v, lu - 1, y0, y1, step);
-    Initialize(prev, u, v, 0, y0, y1, step);
-    // for (int i = lu - 2; i >= 0; --i) {
-    for (int i = 1; i < lu; ++i) {
-        Advance(
-            prev, cur, u, v,
-            i,
-            y0, y1,
-            step,
-            yb0, yb1);
-        swap(prev, cur);
+    Context ctx;
+
+    ctx.prev = buffer;
+    ctx.left = ctx.prev + MAXSTRLEN;
+    ctx.right = ctx.left + MAXSTRLEN;
+    ctx.path = ctx.right + MAXSTRLEN;
+    ctx.u = u;
+    ctx.v = v;
+
+    Solve(&ctx, 0, 0, lu, lv);
+
+    printf("? ");
+    for (int i = 1; i < lu - 1; ++i) {
+        printf("%d ", ctx.path[i]);
     }
-
-    // printf("%d\n", prev[0]);
-    printf("%d\n", prev[lv - 1]);
+    printf("?\n");
 
     return 0;
 }
