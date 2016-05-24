@@ -180,11 +180,56 @@ int main(int argc, char* argv[]) {
 
     Solve(&ctx, 0, 0, lu, lv);
 
-    printf("? ");
-    for (int i = 1; i < lu - 1; ++i) {
-        printf("%d ", ctx.path[i]);
+    // Construct the first and the last alignment.
+    ctx.path[0] = 0;
+    for (int j = 0; j < ctx.path[1]; ++j) {
+        if (v[j] == u[0]) {
+            ctx.path[0] = j;
+            break;
+        }
     }
-    printf("?\n");
+
+    ctx.path[lu - 1] = lv - 1;
+    for (int j = ctx.path[lu - 1] + 1; j < lv; ++j) {
+        if (v[j] == u[lu - 1]) {
+            ctx.path[lu - 1] = j;
+            break;
+        }
+    }
+
+    int total = 0, length = 0, matches = 0;
+    for (int i = 0, b = 0; i < lu; ++i) {
+        while (b < ctx.path[i]) {
+            total += SPScore('_', v[b]);
+            ++length;
+            ++b;
+        }
+        total += SPScore(u[i], v[b]);
+        matches += (u[i] == v[b]);
+        ++length;
+        b = ctx.path[i] + 1;
+    }
+    printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
+
+    for (int i = 0, b = 0; i < lu; ++i) {
+        while (b < ctx.path[i]) {
+            printf("_ ");
+            ++b;
+        }
+        b = ctx.path[i] + 1;
+
+        printf("%c ", u[i]);
+    }
+    printf("\n");
+
+    for (int i = 0, b = 0; i < lu; ++i) {
+        while (b <= ctx.path[i]) {
+            printf("%c ", v[b]);
+            ++b;
+        }
+    }
+    printf("\n");
+
 
     return 0;
 }
