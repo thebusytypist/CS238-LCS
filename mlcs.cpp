@@ -1,25 +1,32 @@
 #include <algorithm>
 #include <utility>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 using std::max;
+using std::abs;
 using std::swap;
 
 const int MAXSTRLEN = 128;
 
+const int SCORE_MATCH = 5;
+const int SCORE_MISMATCH = -4;
+const int SCORE_INDEL = -8;
+const int SCORE_SPACES = 0;
+
 int SPScore(char a, char b) {
     if (a == b && a != '_') {
-        return 5;
+        return SCORE_MATCH;
     }
     else if (a != b && a != '_' && b != '_') {
-        return -4;
+        return SCORE_MISMATCH;
     }
     else if (a != '_' || b != '_') {
-        return -8;
+        return SCORE_INDEL;
     }
     else
-        return 0;
+        return SCORE_SPACES;
 }
 
 int SPScore(char a, char b, char c) {
@@ -72,32 +79,45 @@ void Advance(
     }
 }
 
-int main(int argc, char* argv[]) {
-    char u[MAXSTRLEN], v[MAXSTRLEN];
+void Initialize(
+    int* cur,
+    const char* u, const char* v,
+    int x,
+    int y0, int y1, int step) {
+    bool matched = false;
+    for (int j = y0; j != y1; j += step) {
+        if (matched || u[x] == v[j]) {
+            cur[j] = SCORE_MATCH + SCORE_INDEL * abs(j - y0);
+            matched = true;
+        }
+        else
+            cur[j] = SCORE_MISMATCH + SCORE_INDEL * abs(j - y0);
+    }
+}
 
-    scanf("%s%s", u, v);
+int main(int argc, char* argv[]) {
+    char str0[MAXSTRLEN], str1[MAXSTRLEN];
+
+    scanf("%s%s", str0, str1);
+    const char* u = str0;
+    const char* v = str1;
     int lu = strlen(u), lv = strlen(v);
+    
+    if (lu > lv) {
+        swap(lu, lv);
+        swap(u, v);
+    }
 
     int score[2 * MAXSTRLEN];
     int* prev = score;
     int* cur = score + MAXSTRLEN;
-
-    cur[0] = max(SPScore('_', '_'),
-        max(SPScore('_', v[0]),
-            max(SPScore(u[0], '_'), SPScore(u[0], v[0]))));
     
-    int step = 1;
-    int y0 = 0, y1 = lv;
+    int step = -1;
+    int y0 = lv - 1, y1 = -1;
     int yb0 = 0, yb1 = lv;
 
-    Advance(
-        nullptr, cur, u, v,
-        0,
-        y0, y1,
-        step,
-        yb0, yb1);
-    swap(prev, cur);
-    for (int i = 1; i < lu; ++i) {
+    Initialize(prev, u, v, lu - 1, y0, y1, step);
+    for (int i = lu - 2; i >= 0; --i) {
         Advance(
             prev, cur, u, v,
             i,
@@ -107,7 +127,7 @@ int main(int argc, char* argv[]) {
         swap(prev, cur);
     }
 
-    printf("%d\n", prev[lv - 1]);    
+    printf("%d\n", prev[0]);
 
     return 0;
 }
