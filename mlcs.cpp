@@ -29,10 +29,6 @@ int SPScore(char a, char b) {
         return SCORE_SPACES;
 }
 
-int SPScore(char a, char b, char c) {
-    return SPScore(a, b) + SPScore(b, c) + SPScore(a, c);
-}
-
 void Advance(
     const int* prev, int* cur,
     const char* u, const char* v,
