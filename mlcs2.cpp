@@ -34,12 +34,12 @@ int Score(
     const char* u, const char* v,
     int i, int j,
     int step,
-    int yb0, int yb1, int spacePos) {
+    int yb0, int yb1) {
     bool assigned = false;
     int opt = 0, y;
 
     y = j - step;
-    if (y >= yb0 && y < yb1 || y == spacePos) {
+    if (y >= yb0 && y < yb1) {
         int s = cur[y] + SPScore('_', v[j]);
         if (!assigned || s > opt) {
             assigned = true;
@@ -49,7 +49,7 @@ int Score(
 
     if (prev) {
         y = j;
-        if (y >= yb0 && y < yb1 || y == spacePos) {
+        if (y >= yb0 && y < yb1) {
             int s = prev[y] + SPScore(u[i], '_');
             if (!assigned || s > opt) {
                 assigned = true;
@@ -58,7 +58,7 @@ int Score(
         }
 
         y = j - step;
-        if (y >= yb0 && y < yb1 || y == spacePos) {
+        if (y >= yb0 && y < yb1) {
             int s = prev[y] + SPScore(u[i], v[j]);
             if (!assigned || s > opt) {
                 assigned = true;
@@ -77,13 +77,8 @@ void Advance(
     int y0, int y1,
     int step,
     int yb0, int yb1) {
-    // Advance the space score.
-    int spacePos = y0 - step;
-    cur[spacePos] = Score(prev, cur, u, v,
-        i, spacePos, step, yb0, yb1, spacePos);
-
     for (int j = y0; j != y1; j += step) {
-        cur[j] = Score(prev, cur, u, v, i, j, step, yb0, yb1, spacePos);
+        cur[j] = Score(prev, cur, u, v, i, j, step, yb0, yb1);
     }
 }
 
@@ -91,8 +86,8 @@ void Initialize(
     int* cur,
     const char* u, const char* v,
     int y0, int y1, int step) {
-    cur[y0 - step] = SCORE_SPACES;
-    for (int j = y0; j != y1; j += step) {
+    cur[y0] = SCORE_SPACES;
+    for (int j = y0 + 1; j != y1; j += step) {
         cur[j] = SCORE_INDEL * (abs(j - y0) + 1);
     }
 }
@@ -113,36 +108,30 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 
     int m = (x0 + x1) / 2;
 
-    int x = x0, y = y0;
-    if (x == 0)
-        x = 1;
-    if (y == 0)
-        y = 1;
-
-    Initialize(ctx->left, ctx->u, ctx->v, y, y1, 1);
-    for (int i = x; i <= m; ++i) {
+    Initialize(ctx->left, ctx->u, ctx->v, y0, y1, 1);
+    for (int i = x0 + 1; i <= m; ++i) {
         Advance(
             ctx->left, ctx->prev, ctx->u, ctx->v,
             i,
-            y, y1,
+            y0, y1,
             1,
-            y, y1);
+            y0, y1);
         swap(ctx->left, ctx->prev);
     }
 
-    Initialize(ctx->right, ctx->u, ctx->v, y1 - 1, y - 1, -1);
+    Initialize(ctx->right, ctx->u, ctx->v, y1, y0 - 1, -1);
     for (int i = x1 - 1; i > m; --i) {
         Advance(
             ctx->right, ctx->prev, ctx->u, ctx->v,
             i,
-            y1 - 1, y - 1,
+            y1, y0 - 1,
             -1,
-            y, y1);
+            y0, y1 + 1);
         swap(ctx->right, ctx->prev);
     }
 
-    int k = y, l = ctx->left[y] + ctx->right[y + 1];
-    for (int j = y + 1; j < y1; ++j) {
+    int k = y0, l = ctx->left[y0] + ctx->right[y0 + 1];
+    for (int j = y0 + 1; j < y1; ++j) {
         int n = ctx->left[j] + ctx->right[j + 1];
         if (n > l) {
             l = n;
