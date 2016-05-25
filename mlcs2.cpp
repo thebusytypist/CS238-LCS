@@ -200,6 +200,12 @@ int main(int argc, char* argv[]) {
         ++length;
         b = ctx.path[i] + 1;
     }
+    if (ctx.path[lu - 1] + 1 < lv) {
+        int t = lv - (ctx.path[lu - 1] + 1);
+        total += SCORE_INDEL * t;
+        length += t;
+    }
+
     printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
 
     for (int i = 1, b = 1; i < lu; ++i) {
@@ -211,6 +217,9 @@ int main(int argc, char* argv[]) {
 
         printf("%c ", u[i]);
     }
+    for (int i = ctx.path[lu - 1] + 1; i < lv; ++i) {
+        printf("_ ");
+    }
     printf("\n");
 
     for (int i = 1, b = 1; i < lu; ++i) {
@@ -218,6 +227,9 @@ int main(int argc, char* argv[]) {
             printf("%c ", v[b]);
             ++b;
         }
+    }
+    for (int b = ctx.path[lu - 1] + 1; b < lv; ++b) {
+        printf("%c ", v[b]);
     }
     printf("\n");
 
