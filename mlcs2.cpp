@@ -199,6 +199,19 @@ int main(int argc, char* argv[]) {
     printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
 
     //--------------------------------------------------------------------------
+    Initialize(ctx.left, ctx.u, ctx.v, 0, lv, 1);
+    for (int i = 1; i < lu; ++i) {
+        Step(
+            ctx.left, ctx.prev, ctx.u, ctx.v,
+            i,
+            0, lv,
+            1,
+            0, lv);
+        swap(ctx.left, ctx.prev);
+    }
+    printf("reference score: %d\n", ctx.left[lv - 1]);
+
+    //--------------------------------------------------------------------------
     for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
         while (b < ctx.path[i]) {
             printf("_ ");
