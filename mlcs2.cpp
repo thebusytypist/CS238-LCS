@@ -108,35 +108,41 @@ struct Context {
 };
 
 void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
-    if (x1 - x0 <= 2)
+    if (x1 - x0 <= 1)
         return;
 
     int m = (x0 + x1) / 2;
 
-    Initialize(ctx->left, ctx->u, ctx->v, y0, y1, 1);
-    for (int i = x0; i <= m; ++i) {
+    int x = x0, y = y0;
+    if (x == 0)
+        x = 1;
+    if (y == 0)
+        y = 1;
+
+    Initialize(ctx->left, ctx->u, ctx->v, y, y1, 1);
+    for (int i = x; i <= m; ++i) {
         Advance(
             ctx->left, ctx->prev, ctx->u, ctx->v,
             i,
-            y0, y1,
+            y, y1,
             1,
-            y0, y1);
+            y, y1);
         swap(ctx->left, ctx->prev);
     }
 
-    Initialize(ctx->right, ctx->u, ctx->v, y1 - 1, y0 - 1, -1);
+    Initialize(ctx->right, ctx->u, ctx->v, y1 - 1, y - 1, -1);
     for (int i = x1 - 1; i > m; --i) {
         Advance(
             ctx->right, ctx->prev, ctx->u, ctx->v,
             i,
-            y1 - 1, y0 - 1,
+            y1 - 1, y - 1,
             -1,
-            y0, y1);
+            y, y1);
         swap(ctx->right, ctx->prev);
     }
 
-    int k = y0, l = ctx->left[y0] + ctx->right[y0 + 1];
-    for (int j = y0 + 1; j < y1; ++j) {
+    int k = y, l = ctx->left[y] + ctx->right[y + 1];
+    for (int j = y + 1; j < y1; ++j) {
         int n = ctx->left[j] + ctx->right[j + 1];
         if (n > l) {
             l = n;
@@ -146,7 +152,7 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 
     ctx->path[m] = k;
 
-    Solve(ctx, x0, y0, m + 1, k + 1);
+    Solve(ctx, x0, y0, m, k);
     Solve(ctx, m, k, x1, y1);
 }
 
@@ -175,24 +181,12 @@ int main(int argc, char* argv[]) {
     ctx.u = u;
     ctx.v = v;
 
-    Solve(&ctx, 1, 1, lu, lv);
+    Solve(&ctx, 0, 0, lu, lv);
 
-    // Construct the first and the last alignment.
-    ctx.path[1] = 1;
-    for (int j = 2; j < ctx.path[2]; ++j) {
-        if (v[j] == u[1]) {
-            ctx.path[1] = j;
-            break;
-        }
+    for (int i = 1; i < lu; ++i) {
+        printf("%d ", ctx.path[i]);
     }
-
-    ctx.path[lu - 1] = lv - 1;
-    for (int j = ctx.path[lu - 2] + 1; j < lv - 1; ++j) {
-        if (v[j] == u[lu - 1]) {
-            ctx.path[lu - 1] = j;
-            break;
-        }
-    }
+    printf("\n");
 
     int total = 0, length = 0, matches = 0;
     for (int i = 1, b = 1; i < lu; ++i) {
@@ -207,11 +201,6 @@ int main(int argc, char* argv[]) {
         b = ctx.path[i] + 1;
     }
     printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
-
-    for (int i = 1; i < lu; ++i) {
-        printf("%d ", ctx.path[i]);
-    }
-    printf("\n");
 
     for (int i = 1, b = 1; i < lu; ++i) {
         while (b < ctx.path[i]) {
