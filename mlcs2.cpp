@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-using std::max;
+using std::min;
 using std::abs;
 using std::swap;
 
@@ -119,14 +119,14 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
         swap(ctx->left, ctx->prev);
     }
 
-    Initialize(ctx->right, ctx->u, ctx->v, y1, y0 - 1, -1);
+    Initialize(ctx->right, ctx->u, ctx->v, y1, y0, -1);
     for (int i = x1 - 1; i > m; --i) {
         Step(
             ctx->right, ctx->prev, ctx->u, ctx->v,
             i,
-            y1, y0 - 1,
+            y1, y0,
             -1,
-            y0, y1 + 1);
+            y0 + 1, y1 + 1);
         swap(ctx->right, ctx->prev);
     }
 
@@ -178,27 +178,6 @@ int main(int argc, char* argv[]) {
     printf("\n");
 
     //--------------------------------------------------------------------------
-    int total = 0, length = 0, matches = 0;
-    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
-        while (b < ctx.path[i]) {
-            total += SPScore('_', v[b]);
-            ++length;
-            ++b;
-        }
-        total += SPScore(u[i], v[b]);
-        matches += (u[i] == v[b]);
-        ++length;
-        b = ctx.path[i] + 1;
-    }
-    if (ctx.path[lu - 1] + 1 < lv) {
-        int t = lv - (ctx.path[lu - 1] + 1);
-        total += SCORE_INDEL * t;
-        length += t;
-    }
-
-    printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
-
-    //--------------------------------------------------------------------------
     Initialize(ctx.left, ctx.u, ctx.v, 0, lv, 1);
     for (int i = 1; i < lu; ++i) {
         Step(
@@ -212,7 +191,33 @@ int main(int argc, char* argv[]) {
     printf("reference score: %d\n", ctx.left[lv - 1]);
 
     //--------------------------------------------------------------------------
-    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
+    int total = 0, length = 0, matches = 0;
+    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
+        while (b < ctx.path[i]) {
+            total += SPScore('_', v[b]);
+            ++length;
+            ++b;
+        }
+        if (b == ctx.path[i]) {
+            total += SPScore(u[i], v[b]);
+            matches += (u[i] == v[b]);
+            b = ctx.path[i] + 1;
+        }
+        else {
+            total += SPScore(u[i], '_');
+        }
+        ++length;
+    }
+    if (ctx.path[lu - 1] + 1 < lv) {
+        int t = lv - (ctx.path[lu - 1] + 1);
+        total += SCORE_INDEL * t;
+        length += t;
+    }
+
+    printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
+
+    //--------------------------------------------------------------------------
+    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
         while (b < ctx.path[i]) {
             printf("_ ");
             ++b;
@@ -226,10 +231,17 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
-    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
-        while (b <= ctx.path[i]) {
+    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
+        while (b < ctx.path[i]) {
             printf("%c ", v[b]);
             ++b;
+        }
+        if (b == ctx.path[i]) {
+            printf("%c ", v[b]);
+            b = ctx.path[i] + 1;
+        }
+        else {
+            printf("_ ");
         }
     }
     for (int b = ctx.path[lu - 1] + 1; b < lv; ++b) {
