@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
     }
 
     ctx.path[lu - 1] = lv - 1;
-    for (int j = ctx.path[lu - 1] + 1; j < lv - 1; ++j) {
+    for (int j = ctx.path[lu - 2] + 1; j < lv - 1; ++j) {
         if (v[j] == u[lu - 1]) {
             ctx.path[lu - 1] = j;
             break;
