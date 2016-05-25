@@ -177,8 +177,9 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
+    //--------------------------------------------------------------------------
     int total = 0, length = 0, matches = 0;
-    for (int i = 1, b = 1; i < lu; ++i) {
+    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
         while (b < ctx.path[i]) {
             total += SPScore('_', v[b]);
             ++length;
@@ -197,7 +198,8 @@ int main(int argc, char* argv[]) {
 
     printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
 
-    for (int i = 1, b = 1; i < lu; ++i) {
+    //--------------------------------------------------------------------------
+    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
         while (b < ctx.path[i]) {
             printf("_ ");
             ++b;
@@ -211,7 +213,7 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
 
-    for (int i = 1, b = 1; i < lu; ++i) {
+    for (int i = 1, b = ctx.path[1]; i < lu; ++i) {
         while (b <= ctx.path[i]) {
             printf("%c ", v[b]);
             ++b;
