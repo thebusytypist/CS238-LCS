@@ -70,7 +70,7 @@ int Score(
     return opt;
 }
 
-void Advance(
+void Step(
     const int* prev, int* cur,
     const char* u, const char* v,
     int i,
@@ -110,7 +110,7 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 
     Initialize(ctx->left, ctx->u, ctx->v, y0, y1, 1);
     for (int i = x0 + 1; i <= m; ++i) {
-        Advance(
+        Step(
             ctx->left, ctx->prev, ctx->u, ctx->v,
             i,
             y0, y1,
@@ -121,7 +121,7 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 
     Initialize(ctx->right, ctx->u, ctx->v, y1, y0 - 1, -1);
     for (int i = x1 - 1; i > m; --i) {
-        Advance(
+        Step(
             ctx->right, ctx->prev, ctx->u, ctx->v,
             i,
             y1, y0 - 1,
