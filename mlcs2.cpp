@@ -88,7 +88,7 @@ void Initialize(
     int y0, int y1, int step) {
     cur[y0] = SCORE_SPACES;
     for (int j = y0 + 1; j != y1; j += step) {
-        cur[j] = SCORE_INDEL * (abs(j - y0) + 1);
+        cur[j] = SCORE_INDEL * abs(j - y0);
     }
 }
 
