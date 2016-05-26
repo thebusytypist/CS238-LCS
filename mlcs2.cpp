@@ -247,7 +247,6 @@ int main(int argc, char* argv[]) {
     printf("reference score: %d\n", ctx.left[lv - 1]);
 
     //--------------------------------------------------------------------------
-    ctx.path[0] = 0;
     vector<pair<int, int>> path, seg;
     pair<int, int> last = make_pair(0, 0);
     path.push_back(last);
