@@ -3,10 +3,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
+#include <string>
 
 using std::min;
 using std::abs;
 using std::swap;
+using std::make_pair;
+using std::pair;
+using std::vector;
+using std::string;
 
 const int MAXSTRLEN = 128;
 
@@ -29,14 +35,15 @@ int SPScore(char a, char b) {
         return SCORE_SPACES;
 }
 
-int Score(
+// pair<score, parent>
+pair<int, pair<int, int>> Score(
     const int* prev, const int* cur,
     const char* u, const char* v,
     int i, int j,
     int step,
     int yb0, int yb1) {
     bool assigned = false;
-    int opt = 0, y;
+    int opt = 0, y, py, px;
 
     y = j - step;
     if (y >= yb0 && y < yb1) {
@@ -44,6 +51,8 @@ int Score(
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
+            py = y;
+            px = i;
         }
     }
 
@@ -54,6 +63,8 @@ int Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
+                py = y;
+                px = i - 1;
             }
         }
 
@@ -63,11 +74,13 @@ int Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
+                py = y;
+                px = i - 1;
             }
         }
     } // if (prev)
 
-    return opt;
+    return make_pair(opt, make_pair(px, py));
 }
 
 void Step(
@@ -78,7 +91,8 @@ void Step(
     int step,
     int yb0, int yb1) {
     for (int j = y0; j != y1; j += step) {
-        cur[j] = Score(prev, cur, u, v, i, j, step, yb0, yb1);
+        auto r = Score(prev, cur, u, v, i, j, step, yb0, yb1);
+        cur[j] = r.first;
     }
 }
 
@@ -92,11 +106,47 @@ void Initialize(
     }
 }
 
+void Step(
+    int* linku, int* linkv,
+    const int* prev, int* cur,
+    const char* u, const char* v,
+    int i,
+    int y0, int y1,
+    int step,
+    int yb0, int yb1) {
+    for (int j = y0; j != y1; j += step) {
+        auto r = Score(prev, cur, u, v, i, j, step, yb0, yb1);
+        cur[j] = r.first;
+
+        linku[j] = r.second.first;
+        linkv[j] = r.second.second;
+    }
+}
+
+void Initialize(
+    int* linku, int* linkv,
+    int* cur,
+    const char* u, const char* v,
+    int y0, int y1, int step) {
+    cur[y0] = SCORE_SPACES;
+    for (int j = y0 + 1; j != y1; j += step) {
+        cur[j] = SCORE_INDEL * abs(j - y0);
+
+        linku[j] = 0;
+        linkv[j] = j - 1;
+    }
+}
+
 struct Context {
     int* prev;
     int* left;
     int* right;
     int* path;
+
+    int* link0u;
+    int* link0v;
+    int* link1u;
+    int* link1v;
 
     const char* u;
     const char* v;
@@ -159,7 +209,7 @@ int main(int argc, char* argv[]) {
         swap(u, v);
     }
 
-    int buffer[4 * MAXSTRLEN];
+    int buffer[8 * MAXSTRLEN];
 
     Context ctx;
 
@@ -167,15 +217,21 @@ int main(int argc, char* argv[]) {
     ctx.left = ctx.prev + MAXSTRLEN;
     ctx.right = ctx.left + MAXSTRLEN;
     ctx.path = ctx.right + MAXSTRLEN;
+    ctx.link0u = ctx.path + MAXSTRLEN;
+    ctx.link1u = ctx.link0u + MAXSTRLEN;
+    ctx.link0v = ctx.link1u + MAXSTRLEN;
+    ctx.link1v = ctx.link0v + MAXSTRLEN;
     ctx.u = u;
     ctx.v = v;
 
     Solve(&ctx, 0, 0, lu, lv);
 
+#if 0
     for (int i = 1; i < lu; ++i) {
         printf("%d ", ctx.path[i]);
     }
     printf("\n");
+#endif
 
     //--------------------------------------------------------------------------
     Initialize(ctx.left, ctx.u, ctx.v, 0, lv, 1);
@@ -191,63 +247,87 @@ int main(int argc, char* argv[]) {
     printf("reference score: %d\n", ctx.left[lv - 1]);
 
     //--------------------------------------------------------------------------
-    int total = 0, length = 0, matches = 0;
-    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
-        while (b < ctx.path[i]) {
-            total += SPScore('_', v[b]);
-            ++length;
-            ++b;
+    ctx.path[0] = 0;
+    vector<pair<int, int>> path, seg;
+    pair<int, int> last = make_pair(0, 0);
+    path.push_back(last);
+    Initialize(ctx.link0u, ctx.link0v, ctx.left, ctx.u, ctx.v, 0, lv, 1);
+    for (int i = 1; i < lu; ++i) {
+        Step(
+            ctx.link1u, ctx.link1v,
+            ctx.left, ctx.prev, ctx.u, ctx.v,
+            i,
+            0, lv,
+            1,
+            0, lv);
+
+        seg.clear();
+        int* linku = ctx.link1u;
+        int* linkv = ctx.link1v;
+        pair<int, int> c = make_pair(i, ctx.path[i]);
+        while (c != last) {
+            seg.push_back(c);
+            int px = linku[c.second];
+            int py = linkv[c.second];
+            if (px != i) {
+                linku = ctx.link0u;
+                linkv = ctx.link0v;
+            }
+            c = make_pair(px, py);
         }
-        if (b == ctx.path[i]) {
-            total += SPScore(u[i], v[b]);
-            matches += (u[i] == v[b]);
-            b = ctx.path[i] + 1;
+
+        for (int t = seg.size() - 1; t >= 0; --t) {
+            path.push_back(seg[t]);
         }
-        else {
-            total += SPScore(u[i], '_');
-        }
-        ++length;
+        last = make_pair(i, ctx.path[i]);
+
+        swap(ctx.left, ctx.prev);
+        swap(ctx.link0u, ctx.link1u);
+        swap(ctx.link0v, ctx.link1v);
     }
-    if (ctx.path[lu - 1] + 1 < lv) {
-        int t = lv - (ctx.path[lu - 1] + 1);
-        total += SCORE_INDEL * t;
-        length += t;
+    seg.clear();
+    pair<int, int> c = make_pair(lu - 1, lv - 1);
+    while (c != last) {
+        seg.push_back(c);
+        int px = ctx.link0u[c.second];
+        int py = ctx.link0v[c.second];
+        c = make_pair(px, py);
+    }
+    for (int t = seg.size() - 1; t >= 0; --t) {
+        path.push_back(seg[t]);
+    }
+
+#if 0
+    for (int i = 0; i < path.size(); ++i) {
+        printf("%d %d\n", path[i].first, path[i].second);
+    }
+#endif
+
+    int total = 0, length = path.size() - 1, matches = 0;
+    string au, av;
+    for (int q = 1, i = 1, j = 1; q < path.size(); ++q) {
+        char a = '_';
+        if (path[q].first != path[q - 1].first) {
+            a = u[i];
+            ++i;
+        }
+        char b = '_';
+        if (path[q].second != path[q - 1].second) {
+            b = v[j];
+            ++j;
+        }
+        total += SPScore(a, b);
+        if (a == b && a != '_') {
+            ++matches;
+        }
+
+        au.push_back(a); au.push_back(' ');
+        av.push_back(b); av.push_back(' ');
     }
 
     printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
 
-    //--------------------------------------------------------------------------
-    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
-        while (b < ctx.path[i]) {
-            printf("_ ");
-            ++b;
-        }
-        b = ctx.path[i] + 1;
-
-        printf("%c ", u[i]);
-    }
-    for (int i = ctx.path[lu - 1] + 1; i < lv; ++i) {
-        printf("_ ");
-    }
-    printf("\n");
-
-    for (int i = 1, b = min(1, ctx.path[1]); i < lu; ++i) {
-        while (b < ctx.path[i]) {
-            printf("%c ", v[b]);
-            ++b;
-        }
-        if (b == ctx.path[i]) {
-            printf("%c ", v[b]);
-            b = ctx.path[i] + 1;
-        }
-        else {
-            printf("_ ");
-        }
-    }
-    for (int b = ctx.path[lu - 1] + 1; b < lv; ++b) {
-        printf("%c ", v[b]);
-    }
-    printf("\n");
+    printf("%s\n%s\n", au.c_str(), av.c_str());
 
     return 0;
 }
