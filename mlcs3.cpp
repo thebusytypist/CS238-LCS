@@ -176,6 +176,65 @@ void Initialize(
     }
 }
 
+void Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
+    if (x1 - x0 <= 1)
+        return;
+
+    int m = (x0 + x1) / 2;
+
+    Initialize(ctx, ctx->left, y0, z0, y1, z1, 1, y0, y1, z0, z1);
+    for (int i = x0 + 1; i <= m; ++i) {
+        Step(
+            ctx, ctx->left, ctx->prev,
+            i,
+            y0, z0,
+            y1, z1,
+            1,
+            y0, y1,
+            z0, z1);
+        swap(ctx->left, ctx->prev);
+    }
+
+    Initialize(ctx, ctx->right,
+        y1, z1, y0, z0,
+        -1,
+        y0 + 1, y1 + 1,
+        z0 + 1, z1 + 1);
+    for (int i = x1 - 1; i > m; --i) {
+        Step(
+            ctx, ctx->right, ctx->prev,
+            i,
+            y1, z1,
+            y0, z0,
+            -1,
+            y0 + 1, y1 + 1,
+            z0 + 1, z1 + 1);
+        swap(ctx->right, ctx->prev);
+    }
+
+    int dimz = ctx->dimw;
+    int my = y0, mz = z0;
+    int l = ctx->left[my * dimz + mz]
+        + ctx->right[(my + 1) * dimz + mz + 1];
+    for (int j = y0; j < y1; ++j) {
+        for (int k = z0; k < z1; ++k) {
+            int n = ctx->left[j * dimz + k]
+                + ctx->right[(j + 1) * dimz + k + 1];
+            if (n > l) {
+                l = n;
+                my = j;
+                mz = k;
+            }
+        }
+    }
+
+    ctx->pathv[m] = my;
+    ctx->pathw[m] = mz;
+
+    Solve(ctx, x0, y0, z0, m, my, mz);
+    Solve(ctx, m, my, mz, x1, y1, z1);
+}
+
 int main() {
     char str0[MAXSTRLEN], str1[MAXSTRLEN], str2[MAXSTRLEN];
     scanf("%s%s%s", str0 + 1, str1 + 1, str2 + 1);
@@ -200,6 +259,8 @@ int main() {
         swap(lv, lw);
     }
 
+    printf("%s %s %s\n", u + 1, v + 1, w + 1);
+
     int buffer[(MAXSTRLEN * 3 + 2) * MAXSTRLEN];
 
     Context ctx;
@@ -216,6 +277,20 @@ int main() {
     ctx.dimv = lv;
     ctx.dimw = lw;
 
+    //--------------------------------------------------------------------------
+
+    Solve(&ctx, 0, 0, 0, lu, lv, lw);
+
+    for (int i = 1; i < lu; ++i) {
+        printf("%d ", ctx.pathv[i]);
+    }
+    printf("\n");
+    for (int i = 1; i < lu; ++i) {
+        printf("%d ", ctx.pathw[i]);
+    }
+    printf("\n");
+
+    //--------------------------------------------------------------------------
     Initialize(&ctx, ctx.left,
         0, 0, lv, lw,
         1,
@@ -233,6 +308,9 @@ int main() {
     }
 
     printf("reference score: %d\n", ctx.left[(lv - 1) * lw + lw - 1]);
+
+    //--------------------------------------------------------------------------
+
 
     return 0;
 }
