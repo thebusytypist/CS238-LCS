@@ -35,15 +35,14 @@ int SPScore(char a, char b) {
         return SCORE_SPACES;
 }
 
-// pair<score, parent>
-pair<int, pair<int, int>> Score(
+int Score(
     const int* prev, const int* cur,
     const char* u, const char* v,
     int i, int j,
     int step,
     int yb0, int yb1) {
     bool assigned = false;
-    int opt = 0, y, py, px;
+    int opt = 0, y;
 
     y = j - step;
     if (y >= yb0 && y < yb1) {
@@ -51,8 +50,6 @@ pair<int, pair<int, int>> Score(
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
-            py = y;
-            px = i;
         }
     }
 
@@ -63,8 +60,6 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-                py = y;
-                px = i - 1;
             }
         }
 
@@ -74,13 +69,11 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-                py = y;
-                px = i - 1;
             }
         }
     } // if (prev)
 
-    return make_pair(opt, make_pair(px, py));
+    return opt;
 }
 
 void Step(
@@ -91,8 +84,7 @@ void Step(
     int step,
     int yb0, int yb1) {
     for (int j = y0; j != y1; j += step) {
-        auto r = Score(prev, cur, u, v, i, j, step, yb0, yb1);
-        cur[j] = r.first;
+        cur[j] = Score(prev, cur, u, v, i, j, step, yb0, yb1);
     }
 }
 
@@ -103,37 +95,6 @@ void Initialize(
     cur[y0] = SCORE_SPACES;
     for (int j = y0 + 1; j != y1; j += step) {
         cur[j] = SCORE_INDEL * abs(j - y0);
-    }
-}
-
-void Step(
-    int* linku, int* linkv,
-    const int* prev, int* cur,
-    const char* u, const char* v,
-    int i,
-    int y0, int y1,
-    int step,
-    int yb0, int yb1) {
-    for (int j = y0; j != y1; j += step) {
-        auto r = Score(prev, cur, u, v, i, j, step, yb0, yb1);
-        cur[j] = r.first;
-
-        linku[j] = r.second.first;
-        linkv[j] = r.second.second;
-    }
-}
-
-void Initialize(
-    int* linku, int* linkv,
-    int* cur,
-    const char* u, const char* v,
-    int y0, int y1, int step) {
-    cur[y0] = SCORE_SPACES;
-    for (int j = y0 + 1; j != y1; j += step) {
-        cur[j] = SCORE_INDEL * abs(j - y0);
-
-        linku[j] = 0;
-        linkv[j] = j - 1;
     }
 }
 
@@ -143,18 +104,14 @@ struct Context {
     int* right;
     int* path;
 
-    int* link0u;
-    int* link0v;
-    int* link1u;
-    int* link1v;
-
     const char* u;
     const char* v;
 };
 
-void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
+// Return the maximum score.
+int Solve(Context* ctx, int x0, int y0, int x1, int y1) {
     if (x1 - x0 <= 1)
-        return;
+        return 0;
 
     int m = (x0 + x1) / 2;
 
@@ -193,6 +150,75 @@ void Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 
     Solve(ctx, x0, y0, m, k);
     Solve(ctx, m, k, x1, y1);
+
+    return l;
+}
+
+void Trace(vector<pair<int, int>>& path,
+    const int* prev, const int* cur,
+    const char* u, const char* v,
+    int i, int y0, int y1) {
+    // pair<parent, pair<x, y>>
+    typedef pair<int, pair<int, int>> Node;
+    vector<Node> Q;
+    Q.push_back(make_pair(-1, make_pair(i, y1)));
+    int front = 0;
+
+    while (front < Q.size()) {
+        auto h = Q[front];
+        int x = h.second.first;
+        int y = h.second.second;
+
+        if (x == i - 1 && y == y0)
+            break;
+
+        int best = 0;
+        bool assigned = false;
+
+        bool s0valid = x == i;
+        int s0 = 0;
+        if (s0valid) {
+            s0 = prev[y] + SPScore(u[x], '_');
+            best = s0 > best || !assigned ? s0 : best;
+            assigned = true;
+        }
+
+        bool s1valid = x == i && y > y0;
+        int s1 = 0;
+        if (s1valid) {
+            s1 = prev[y - 1] + SPScore(u[x], v[y]);
+            best = s1 > best || !assigned ? s1 : best;
+            assigned = true;
+        }
+
+        bool s2valid = y > y0;
+        int s2 = 0;
+        if (s2valid) {
+            const int* p = x == i ? cur : prev;
+            s2 = p[y - 1] + SPScore('_', v[y]);
+            best = s2 > best || !assigned ? s2 : best;
+            assigned = true;
+        }
+
+        if (s0valid && s0 == best) {
+            Q.push_back(make_pair(front, make_pair(x - 1, y)));
+        }
+        if (s1valid && s1 == best) {
+            Q.push_back(make_pair(front, make_pair(x - 1, y - 1)));
+        }
+        if (s2valid && s2 == best) {
+            Q.push_back(make_pair(front, make_pair(x, y - 1)));
+        }
+
+        // Pop the current node.
+        ++front;
+    }
+
+    front = Q[front].first;
+    while (front != -1) {
+        path.push_back(Q[front].second);
+        front = Q[front].first;
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -209,7 +235,7 @@ int main(int argc, char* argv[]) {
         swap(u, v);
     }
 
-    int buffer[8 * MAXSTRLEN];
+    int buffer[4 * MAXSTRLEN];
 
     Context ctx;
 
@@ -217,14 +243,12 @@ int main(int argc, char* argv[]) {
     ctx.left = ctx.prev + MAXSTRLEN;
     ctx.right = ctx.left + MAXSTRLEN;
     ctx.path = ctx.right + MAXSTRLEN;
-    ctx.link0u = ctx.path + MAXSTRLEN;
-    ctx.link1u = ctx.link0u + MAXSTRLEN;
-    ctx.link0v = ctx.link1u + MAXSTRLEN;
-    ctx.link1v = ctx.link0v + MAXSTRLEN;
     ctx.u = u;
     ctx.v = v;
 
-    Solve(&ctx, 0, 0, lu, lv);
+    int score = Solve(&ctx, 0, 0, lu, lv);
+
+    printf("score: %d\n", score);
 
 #if 0
     for (int i = 1; i < lu; ++i) {
@@ -234,6 +258,9 @@ int main(int argc, char* argv[]) {
 #endif
 
     //--------------------------------------------------------------------------
+    vector<pair<int, int>> path;
+    path.push_back(make_pair(0, 0));
+
     Initialize(ctx.left, ctx.u, ctx.v, 0, lv, 1);
     for (int i = 1; i < lu; ++i) {
         Step(
@@ -243,66 +270,19 @@ int main(int argc, char* argv[]) {
             1,
             0, lv);
         swap(ctx.left, ctx.prev);
+        int last = path[path.size() - 1].second;
+        Trace(path, ctx.prev, ctx.left, u, v, i, last, ctx.path[i]);
     }
     printf("reference score: %d\n", ctx.left[lv - 1]);
 
     //--------------------------------------------------------------------------
-    vector<pair<int, int>> path, seg;
-    pair<int, int> last = make_pair(0, 0);
-    path.push_back(last);
-    Initialize(ctx.link0u, ctx.link0v, ctx.left, ctx.u, ctx.v, 0, lv, 1);
-    for (int i = 1; i < lu; ++i) {
-        Step(
-            ctx.link1u, ctx.link1v,
-            ctx.left, ctx.prev, ctx.u, ctx.v,
-            i,
-            0, lv,
-            1,
-            0, lv);
-
-        seg.clear();
-        int* linku = ctx.link1u;
-        int* linkv = ctx.link1v;
-        pair<int, int> c = make_pair(i, ctx.path[i]);
-        while (c != last) {
-            seg.push_back(c);
-            int px = linku[c.second];
-            int py = linkv[c.second];
-            if (px != i) {
-                linku = ctx.link0u;
-                linkv = ctx.link0v;
-            }
-            c = make_pair(px, py);
-        }
-
-        for (int t = seg.size() - 1; t >= 0; --t) {
-            path.push_back(seg[t]);
-        }
-        last = make_pair(i, ctx.path[i]);
-
-        swap(ctx.left, ctx.prev);
-        swap(ctx.link0u, ctx.link1u);
-        swap(ctx.link0v, ctx.link1v);
-    }
-    seg.clear();
-    pair<int, int> c = make_pair(lu - 1, lv - 1);
-    while (c != last) {
-        seg.push_back(c);
-        int px = ctx.link0u[c.second];
-        int py = ctx.link0v[c.second];
-        c = make_pair(px, py);
-    }
-    for (int t = seg.size() - 1; t >= 0; --t) {
-        path.push_back(seg[t]);
-    }
-
 #if 0
-    for (int i = 0; i < path.size(); ++i) {
-        printf("%d %d\n", path[i].first, path[i].second);
+    for (int t = 0; t < path.size(); ++t) {
+        printf("(%d %d)\n", path[t].first, path[t].second);
     }
 #endif
 
-    int total = 0, length = path.size() - 1, matches = 0;
+    int length = path.size() - 1, matches = 0;
     string au, av;
     for (int q = 1, i = 1, j = 1; q < path.size(); ++q) {
         char a = '_';
@@ -315,7 +295,6 @@ int main(int argc, char* argv[]) {
             b = v[j];
             ++j;
         }
-        total += SPScore(a, b);
         if (a == b && a != '_') {
             ++matches;
         }
@@ -324,7 +303,7 @@ int main(int argc, char* argv[]) {
         av.push_back(b); av.push_back(' ');
     }
 
-    printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
+    printf("length: %d\nmatches: %d\n", length, matches);
 
     printf("%s\n%s\n", au.c_str(), av.c_str());
 
