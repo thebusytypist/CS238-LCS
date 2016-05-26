@@ -1,4 +1,4 @@
-#define TEST 0
+#define TEST
 
 #include <algorithm>
 #include <utility>
@@ -16,7 +16,9 @@ using std::pair;
 using std::vector;
 using std::string;
 
+#ifndef TEST
 const int MAXSTRLEN = 128;
+#endif
 
 const int SCORE_MATCH = 5;
 const int SCORE_MISMATCH = -4;
@@ -328,15 +330,35 @@ void Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
 }
 
 int main() {
+#ifndef TEST
     char str0[MAXSTRLEN], str1[MAXSTRLEN], str2[MAXSTRLEN];
     scanf("%s%s%s", str0 + 1, str1 + 1, str2 + 1);
+#else
+    int sz0, sz1, sz2;
+    scanf("%d", &sz0);
+    char* str0 = (char*)malloc(sizeof(char) * (sz0 + 2));
+    scanf("%s", str0 + 1);
+
+    scanf("%d", &sz1);
+    char* str1 = (char*)malloc(sizeof(char) * (sz1 + 2));
+    scanf("%s", str1 + 1);
+
+    scanf("%d", &sz2);
+    char* str2 = (char*)malloc(sizeof(char) * (sz2 + 2));
+    scanf("%s", str2 + 1);
+#endif
+
     str0[0] = str1[0] = str2[0] = '_';
 
     const char* u = str0;
     const char* v = str1;
     const char* w = str2;
 
+#ifndef TEST
     int lu = strlen(u), lv = strlen(v), lw = strlen(w);
+#else
+    int lu = sz0 + 1, lv = sz1 + 1, lw = sz2 + 1;
+#endif
 
     if (lv < lu) {
         swap(u, v);
@@ -353,10 +375,17 @@ int main() {
 
     printf("%s %s %s\n", u + 1, v + 1, w + 1);
 
+#ifndef TEST
     int buffer[(MAXSTRLEN * 7 + 2) * MAXSTRLEN];
+#else
+    int rowUnit = (lu + 1);
+    int pageUnit = (lv + 1) * (lw + 1);
+    int* buffer = (int*)malloc((7 * pageUnit + 2 * rowUnit) * sizeof(int));
+#endif
 
     Context ctx;
     ctx.prev = buffer;
+#ifndef TEST
     ctx.left = ctx.prev + MAXSTRLEN * MAXSTRLEN;
     ctx.right = ctx.left + MAXSTRLEN * MAXSTRLEN;
     ctx.link0u = ctx.right + MAXSTRLEN * MAXSTRLEN;
@@ -366,6 +395,17 @@ int main() {
 
     ctx.pathv = ctx.link1vw + MAXSTRLEN * MAXSTRLEN;
     ctx.pathw = ctx.pathv + MAXSTRLEN;
+#else
+    ctx.left = ctx.prev + pageUnit;
+    ctx.right = ctx.left + pageUnit;
+    ctx.link0u = ctx.right + pageUnit;
+    ctx.link0vw = ctx.link0u + pageUnit;
+    ctx.link1u = ctx.link0vw + pageUnit;
+    ctx.link1vw = ctx.link1u + pageUnit;
+
+    ctx.pathv = ctx.link1vw + pageUnit;
+    ctx.pathw = ctx.pathv + rowUnit;
+#endif
 
     ctx.u = u;
     ctx.v = v;
