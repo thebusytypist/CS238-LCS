@@ -624,6 +624,8 @@ int main() {
 #endif
     
     //--------------------------------------------------------------------------
+    start = time(nullptr);
+
     vector<Position> path;
     path.push_back(make_pair(0, make_pair(0, 0)));
 
@@ -702,6 +704,10 @@ int main() {
     }
 
     printf("length: %d\nmatches: %d\n", length, matches);
+
+    end = time(nullptr);
+
+    printf("Solution construction time: %d secs\n", end - start);
 
 #if 0
     printf("%s\n%s\n%s\n", au.c_str(), av.c_str(), aw.c_str());
