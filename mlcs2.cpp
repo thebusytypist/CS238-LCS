@@ -93,7 +93,7 @@ void Initialize(
     const char* u, const char* v,
     int y0, int y1, int step) {
     cur[y0] = SCORE_SPACES;
-    for (int j = y0 + 1; j != y1; j += step) {
+    for (int j = y0 + step; j != y1; j += step) {
         cur[j] = SCORE_INDEL * abs(j - y0);
     }
 }
