@@ -143,6 +143,48 @@ int Score(
     return opt;
 }
 
+int Score2(
+    const int* prev, const int* cur,
+    const char* u, const char* v,
+    int i, int j,
+    int step,
+    int yb0, int yb1) {
+    // The last parameter of SPScore is '_' by default.
+    bool assigned = false;
+    int opt = 0, y;
+
+    y = j - step;
+    if (y >= yb0 && y < yb1) {
+        int s = cur[y] + SPScore('_', v[j], '_');
+        if (!assigned || s > opt) {
+            assigned = true;
+            opt = s;
+        }
+    }
+
+    if (prev) {
+        y = j;
+        if (y >= yb0 && y < yb1) {
+            int s = prev[y] + SPScore(u[i], '_', '_');
+            if (!assigned || s > opt) {
+                assigned = true;
+                opt = s;
+            }
+        }
+
+        y = j - step;
+        if (y >= yb0 && y < yb1) {
+            int s = prev[y] + SPScore(u[i], v[j], '_');
+            if (!assigned || s > opt) {
+                assigned = true;
+                opt = s;
+            }
+        }
+    } // if (prev)
+
+    return opt;
+}
+
 void Step(
     const Context* ctx,
     const int* prev, int* cur,
@@ -171,11 +213,11 @@ void Initialize(
     int zb0, int zb1) {
     int dimy = ctx->dimv, dimz = ctx->dimw;
     cur[y0 * dimz + z0] = SCORE_SPACES;
-    for (int k = z0 + 1; k != z1; k += step) {
+    for (int k = z0 + step; k != z1; k += step) {
         cur[y0 * dimz + k] = 2 * SCORE_INDEL * abs(k - z0);
     }
 
-    for (int j = y0 + 1; j != y1; j += step) {
+    for (int j = y0 + step; j != y1; j += step) {
         for (int k = z0; k != z1; k += step) {
             // u[0] is '_'.
             cur[j * dimz + k] =
@@ -184,9 +226,114 @@ void Initialize(
     }
 }
 
+void Step2(
+    const int* prev, int* cur,
+    const char* u, const char* v,
+    int i,
+    int y0, int y1,
+    int step,
+    int yb0, int yb1) {
+    for (int j = y0; j != y1; j += step) {
+        cur[j] = Score2(prev, cur, u, v, i, j, step, yb0, yb1);
+    }
+}
+
+void Initialize2(
+    int* cur,
+    const char* u, const char* v,
+    int y0, int y1, int step) {
+    cur[y0] = SCORE_SPACES;
+    for (int j = y0 + step; j != y1; j += step) {
+        // The score is for a match of _, _, *.
+        cur[j] = 2 * SCORE_INDEL * abs(j - y0);
+    }
+}
+
+int Solve2(
+    int* path,
+    int* prev, int* left, int* right,
+    const char* u, const char* v,
+    int x0, int y0, int x1, int y1) {
+    if (x1 - x0 <= 1)
+        return 0;
+
+    // Handle the degenerate case.
+    if (y0 == y1) {
+        for (int i = x0 + 1; i < x1; ++i) {
+            path[i] = y0;
+        }
+        // We do not care the return value for the non-top case.
+        return 0;
+    }
+
+    int m = (x0 + x1) / 2;
+
+    Initialize2(left, u, v, y0, y1, 1);
+    for (int i = x0 + 1; i <= m; ++i) {
+        Step2(
+            left, prev, u, v,
+            i,
+            y0, y1,
+            1,
+            y0, y1);
+        swap(left, prev);
+    }
+
+    Initialize2(right, u, v, y1, y0, -1);
+    for (int i = x1 - 1; i > m; --i) {
+        Step2(
+            right, prev, u, v,
+            i,
+            y1, y0,
+            -1,
+            y0 + 1, y1 + 1);
+        swap(right, prev);
+    }
+
+    int k = y0, l = left[y0] + right[y0 + 1];
+    for (int j = y0 + 1; j < y1; ++j) {
+        int n = left[j] + right[j + 1];
+        if (n > l) {
+            l = n;
+            k = j;
+        }
+    }
+
+    path[m] = k;
+
+    Solve2(path, prev, left, right, u, v, x0, y0, m, k);
+    Solve2(path, prev, left, right, u, v, m, k, x1, y1);
+
+    return l;
+}
+
 int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
     if (x1 - x0 <= 1)
         return 0;
+
+    // Handle the degenerate cases.
+    if (y0 == y1) {
+        for (int i = x0 + 1; i < x1; ++i) {
+            ctx->pathv[i] = y0;
+        }
+
+        Solve2(ctx->pathw,
+            ctx->prev, ctx->left, ctx->right,
+            ctx->u, ctx->w,
+            x0, z0, x1, z1);
+        return 0;
+    }
+    else if (z0 == z1) {
+        for (int i = x0 + 1; i < x1; ++i) {
+            ctx->pathw[i] = z0;
+        }
+
+        Solve2(ctx->pathv,
+            ctx->prev, ctx->left, ctx->right,
+            ctx->u, ctx->v,
+            x0, y0, x1, y1);
+        return 0;
+    }
 
     int m = (x0 + x1) / 2;
 
