@@ -116,7 +116,7 @@ int Solve(Context* ctx, int x0, int y0, int x1, int y1) {
     // Handle the degenerate case.
     if (y0 == y1) {
         for (int i = x0 + 1; i < x1; ++i) {
-            ctx->path[i] = 0;
+            ctx->path[i] = y0;
         }
         // We do not care the return value for the non-top case.
         return 0;
