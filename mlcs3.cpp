@@ -1,3 +1,5 @@
+#include <emmintrin.h>
+#include <tmmintrin.h>
 #include <algorithm>
 #include <utility>
 #include <cstdio>
@@ -14,10 +16,6 @@ using std::make_pair;
 using std::pair;
 using std::vector;
 using std::string;
-
-#ifndef TEST
-const int MAXSTRLEN = 128;
-#endif
 
 const int SCORE_MATCH = 5;
 const int SCORE_MISMATCH = -4;
@@ -37,9 +35,10 @@ struct Context {
     const char* w;
 
     int dimv, dimw;
+    int shiftw;
 };
 
-int SPScore(char a, char b) {
+inline int SPScore(char a, char b) {
     if (a == b && a != '_') {
         return SCORE_MATCH;
     }
@@ -53,7 +52,7 @@ int SPScore(char a, char b) {
         return SCORE_SPACES;
 }
 
-int SPScore(char a, char b, char c) {
+inline int SPScore(char a, char b, char c) {
     return SPScore(a, b) + SPScore(b, c) + SPScore(c, a);
 }
 
@@ -65,13 +64,21 @@ int Score(
     int yb0, int yb1,
     int zb0, int zb1) {
     int dimz = ctx->dimw;
+    int shiftz = ctx->shiftw;
     bool assigned = false;
     int opt = 0, y, z;
+
+    const __m128i shift = _mm_set_epi32(0, shiftz, 0, shiftz);
+    const __m128i Y = _mm_set_epi32(j, j - step, j, j - step);
+    const __m128i Z = _mm_set_epi32(k, k, k - step, k - step);
+    const __m128i L = _mm_add_epi32(_mm_sll_epi32(Y, shift), Z);
+    int Ls[4];
+    _mm_storeu_si128((__m128i*)Ls, L);
 
     y = j - step;
     z = k;
     if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-        int s = cur[y * dimz + z] + SPScore('_', ctx->v[j], '_');
+        int s = cur[Ls[2]] + SPScore('_', ctx->v[j], '_');
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
@@ -81,7 +88,7 @@ int Score(
     y = j;
     z = k - step;
     if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-        int s = cur[y * dimz + z] + SPScore('_', '_', ctx->w[k]);
+        int s = cur[Ls[1]] + SPScore('_', '_', ctx->w[k]);
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
@@ -91,7 +98,7 @@ int Score(
     y = j - step;
     z = k - step;
     if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-        int s = cur[y * dimz + z] + SPScore('_', ctx->v[j], ctx->w[k]);
+        int s = cur[Ls[0]] + SPScore('_', ctx->v[j], ctx->w[k]);
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
@@ -102,7 +109,7 @@ int Score(
         y = j;
         z = k;
         {
-            int s = prev[y * dimz + z] + SPScore(ctx->u[i], '_', '_');
+            int s = prev[Ls[3]] + SPScore(ctx->u[i], '_', '_');
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
@@ -112,7 +119,7 @@ int Score(
         y = j - step;
         z = k;
         if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-            int s = prev[y * dimz + z] + SPScore(ctx->u[i], ctx->v[j], '_');
+            int s = prev[Ls[2]] + SPScore(ctx->u[i], ctx->v[j], '_');
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
@@ -122,7 +129,7 @@ int Score(
         y = j;
         z = k - step;
         if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-            int s = prev[y * dimz + z] + SPScore(ctx->u[i], '_', ctx->w[k]);
+            int s = prev[Ls[1]] + SPScore(ctx->u[i], '_', ctx->w[k]);
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
@@ -132,7 +139,7 @@ int Score(
         y = j - step;
         z = k - step;
         if (y >= yb0 && y < yb1 && z >= zb0 && z < zb1) {
-            int s = prev[y * dimz + z]
+            int s = prev[Ls[0]]
                 + SPScore(ctx->u[i], ctx->v[j], ctx->w[k]);
             if (!assigned || s > opt) {
                 assigned = true;
@@ -523,11 +530,18 @@ void Trace(
     }
 }
 
+unsigned int NextPowerOf2(unsigned int n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
+
 int main() {
-#ifndef TEST
-    char str0[MAXSTRLEN], str1[MAXSTRLEN], str2[MAXSTRLEN];
-    scanf("%s%s%s", str0 + 1, str1 + 1, str2 + 1);
-#else
     int sz0, sz1, sz2;
     scanf("%d", &sz0);
     char* str0 = (char*)malloc(sizeof(char) * (sz0 + 2));
@@ -540,7 +554,6 @@ int main() {
     scanf("%d", &sz2);
     char* str2 = (char*)malloc(sizeof(char) * (sz2 + 2));
     scanf("%s", str2 + 1);
-#endif
 
     str0[0] = str1[0] = str2[0] = '_';
 
@@ -548,11 +561,7 @@ int main() {
     const char* v = str1;
     const char* w = str2;
 
-#ifndef TEST
-    int lu = strlen(u), lv = strlen(v), lw = strlen(w);
-#else
     int lu = sz0 + 1, lv = sz1 + 1, lw = sz2 + 1;
-#endif
 
     if (lv < lu) {
         swap(u, v);
@@ -569,36 +578,33 @@ int main() {
 
     // printf("%s %s %s\n", u + 1, v + 1, w + 1);
 
-#ifndef TEST
-    int buffer[(MAXSTRLEN * 3 + 2) * MAXSTRLEN];
-#else
     int rowUnit = (lu + 1);
-    int pageUnit = (lv + 1) * (lw + 1);
+    int padw = NextPowerOf2(lw + 1);
+    int pageUnit = (lv + 1) * padw;
     int* buffer = (int*)malloc((3 * pageUnit + 2 * rowUnit) * sizeof(int));
-#endif
 
     Context ctx;
     ctx.prev = buffer;
-#ifndef TEST
-    ctx.left = ctx.prev + MAXSTRLEN * MAXSTRLEN;
-    ctx.right = ctx.left + MAXSTRLEN * MAXSTRLEN;
-
-    ctx.pathv = ctx.right + MAXSTRLEN * MAXSTRLEN;
-    ctx.pathw = ctx.pathv + MAXSTRLEN;
-#else
     ctx.left = ctx.prev + pageUnit;
     ctx.right = ctx.left + pageUnit;
 
     ctx.pathv = ctx.right + pageUnit;
     ctx.pathw = ctx.pathv + rowUnit;
-#endif
 
     ctx.u = u;
     ctx.v = v;
     ctx.w = w;
 
     ctx.dimv = lv;
-    ctx.dimw = lw;
+    ctx.dimw = padw;
+    
+    int cnt = 0;
+    int temp = padw;
+    while (temp != 0) {
+        ++cnt;
+        temp >>= 1;
+    }
+    ctx.shiftw = cnt - 1;
 
     //--------------------------------------------------------------------------
 
@@ -658,7 +664,7 @@ int main() {
             lu - 1, lv - 1, lw - 1);
     }
 
-    printf("reference score: %d\n", ctx.left[(lv - 1) * lw + lw - 1]);
+    printf("reference score: %d\n", ctx.left[(lv - 1) * ctx.dimw + lw - 1]);
 
     //--------------------------------------------------------------------------
 #if 0
