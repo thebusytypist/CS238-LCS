@@ -1,0 +1,6 @@
+score: 4000
+D&C time: 179 secs
+reference score: 4000
+length: 2756
+matches: 1379
+Solution construction time: 133 secs
