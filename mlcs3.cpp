@@ -1,5 +1,3 @@
-#define TEST
-
 #include <algorithm>
 #include <utility>
 #include <cstdio>
@@ -33,11 +31,6 @@ struct Context {
     int* pathv;
     int* pathw;
 
-    int* link0u;
-    int* link0vw;
-    int* link1u;
-    int* link1vw;
-
     const char* u;
     const char* v;
     const char* w;
@@ -63,18 +56,16 @@ int SPScore(char a, char b, char c) {
     return SPScore(a, b) + SPScore(b, c) + SPScore(c, a);
 }
 
-// pair<score, parent>
-pair<int, pair<int, int>> Score(
+int Score(
     const Context* ctx,
     const int* prev, const int* cur,
     int i, int j, int k,
     int step,
     int yb0, int yb1,
     int zb0, int zb1) {
-    int dimy = ctx->dimv, dimz = ctx->dimw;
+    int dimz = ctx->dimw;
     bool assigned = false;
     int opt = 0, y, z;
-    int px, pyz;
 
     y = j - step;
     z = k;
@@ -83,9 +74,6 @@ pair<int, pair<int, int>> Score(
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
-
-            px = i;
-            pyz = y * dimz + z;
         }
     }
 
@@ -96,9 +84,6 @@ pair<int, pair<int, int>> Score(
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
-
-            px = i;
-            pyz = y * dimz + z;
         }
     }
 
@@ -109,9 +94,6 @@ pair<int, pair<int, int>> Score(
         if (!assigned || s > opt) {
             assigned = true;
             opt = s;
-
-            px = i;
-            pyz = y * dimz + z;
         }
     }
 
@@ -123,9 +105,6 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-
-                px = i - 1;
-                pyz = y * dimz + z;
             }
         }
 
@@ -136,9 +115,6 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-
-                px = i - 1;
-                pyz = y * dimz + z;
             }
         }
 
@@ -149,9 +125,6 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-
-                px = i - 1;
-                pyz = y * dimz + z;
             }
         }
 
@@ -163,14 +136,11 @@ pair<int, pair<int, int>> Score(
             if (!assigned || s > opt) {
                 assigned = true;
                 opt = s;
-
-                px = i - 1;
-                pyz = y * dimz + z;
             }
         }
     } // if (prev)
 
-    return make_pair(opt, make_pair(px, pyz));
+    return opt;
 }
 
 void Step(
@@ -185,8 +155,8 @@ void Step(
     int dimz = ctx->dimw;
     for (int j = y0; j != y1; j += step) {
         for (int k = z0; k != z1; k += step) {
-            auto r = Score(ctx, prev, cur, i, j, k, step, yb0, yb1, zb0, zb1);
-            cur[j * dimz + k] = r.first;
+            cur[j * dimz + k] =
+                Score(ctx, prev, cur, i, j, k, step, yb0, yb1, zb0, zb1);
         }
     }
 }
@@ -208,71 +178,15 @@ void Initialize(
     for (int j = y0 + 1; j != y1; j += step) {
         for (int k = z0; k != z1; k += step) {
             // u[0] is '_'.
-            auto r =
+            cur[j * dimz + k] =
                 Score(ctx, nullptr, cur, 0, j, k, step, yb0, yb1, zb0, zb1);
-            cur[j * dimz + k] = r.first;
         }
     }
 }
 
-void Step(
-    const Context* ctx,
-    int* linku, int* linkvw,
-    const int* prev, int* cur,
-    int i,
-    int y0, int z0,
-    int y1, int z1,
-    int step,
-    int yb0, int yb1,
-    int zb0, int zb1) {
-    int dimz = ctx->dimw;
-    for (int j = y0; j != y1; j += step) {
-        for (int k = z0; k != z1; k += step) {
-            auto r = Score(ctx, prev, cur, i, j, k, step, yb0, yb1, zb0, zb1);
-            int p = j * dimz + k;
-            cur[p] = r.first;
-
-            linku[p] = r.second.first;
-            linkvw[p] = r.second.second;
-        }
-    }
-}
-
-void Initialize(
-    const Context* ctx,
-    int* linku, int* linkvw,
-    int* cur,
-    int y0, int z0,
-    int y1, int z1,
-    int step,
-    int yb0, int yb1,
-    int zb0, int zb1) {
-    int dimy = ctx->dimv, dimz = ctx->dimw;
-    cur[y0 * dimz + z0] = SCORE_SPACES;
-    for (int k = z0 + 1; k != z1; k += step) {
-        cur[y0 * dimz + k] = 2 * SCORE_INDEL * abs(k - z0);
-
-        linku[y0 * dimz + k] = 0;
-        linkvw[y0 * dimz + k] = y0 * dimz + k - 1;
-    }
-
-    for (int j = y0 + 1; j != y1; j += step) {
-        for (int k = z0; k != z1; k += step) {
-            // u[0] is '_'.
-            auto r =
-                Score(ctx, nullptr, cur, 0, j, k, step, yb0, yb1, zb0, zb1);
-            int p = j * dimz + k;
-            cur[p] = r.first;
-
-            linku[p] = r.second.first;
-            linkvw[p] = r.second.second;
-        }
-    }
-}
-
-void Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
+int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
     if (x1 - x0 <= 1)
-        return;
+        return 0;
 
     int m = (x0 + x1) / 2;
 
@@ -327,6 +241,138 @@ void Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
 
     Solve(ctx, x0, y0, z0, m, my, mz);
     Solve(ctx, m, my, mz, x1, y1, z1);
+
+    return l;
+}
+
+typedef pair<int, pair<int, int>> Position;
+
+void Trace(
+    const Context* ctx,
+    vector<Position>& path,
+    const int* prev, const int* cur,
+    int x0, int y0, int z0,
+    int x1, int y1, int z1) {
+    int dimz = ctx->dimw;
+    const char* u = ctx->u;
+    const char* v = ctx->v;
+    const char* w = ctx->w;
+    // pair<parent, pair<x, y, z>>
+    typedef pair<int, Position> Node;
+    vector<Node> Q;
+    Q.push_back(make_pair(-1, make_pair(x1, make_pair(y1, z1))));
+    int front = 0;
+
+    while (front < Q.size()) {
+        auto h = Q[front];
+        int x = h.second.first;
+        int y = h.second.second.first;
+        int z = h.second.second.second;
+
+        if (x == x0 && y == y0 && z == z0)
+            break;
+
+        int best = 0;
+        bool assigned = false;
+        const int* p = x == x1 ? cur : prev;
+
+        bool s0valid = y > y0;
+        int s0 = 0;
+        if (s0valid) {
+            s0 = p[(y - 1) * dimz + z] + SPScore('_', v[y], '_');
+            best = s0 > best || !assigned ? s0 : best;
+            assigned = true;
+        }
+
+        bool s1valid = y > y0 && z > z0;
+        int s1 = 0;
+        if (s1valid) {
+            s1 = p[(y - 1) * dimz + z - 1] + SPScore('_', v[y], w[z]);
+            best = s1 > best || !assigned ? s1 : best;
+            assigned = true;
+        }
+
+        bool s2valid = z > z0;
+        int s2 = 0;
+        if (s2valid) {
+            s2 = p[y * dimz + z - 1] + SPScore('_', '_', w[z]);
+            best = s2 > best || !assigned ? s2 : best;
+            assigned = true;
+        }
+
+        //----------------------------------------------------------------------
+
+        bool prevvalid = x > x0;
+
+        bool s3valid = prevvalid;
+        int s3 = 0;
+        if (s3valid) {
+            s3 = prev[y * dimz + z] + SPScore(u[x], '_', '_');
+            best = s3 > best || !assigned ? s3 : best;
+            assigned = true;
+        }
+
+        bool s4valid = prevvalid && y > y0;
+        int s4 = 0;
+        if (s4valid) {
+            s4 = prev[(y - 1) * dimz + z] + SPScore(u[x], v[y], '_');
+            best = s4 > best || !assigned ? s4 : best;
+            assigned = true;
+        }
+
+        bool s5valid = prevvalid && y > y0 && z > z0;
+        int s5 = 0;
+        if (s5valid) {
+            s5 = prev[(y - 1) * dimz + z - 1] + SPScore(u[x], v[y], w[z]);
+            best = s5 > best || !assigned ? s5 : best;
+            assigned = true;
+        }
+
+        bool s6valid = prevvalid && z > z0;
+        int s6 = 0;
+        if (s6valid) {
+            s6 = prev[y * dimz + z - 1] + SPScore(u[x], '_', w[z]);
+            best = s6 > best || !assigned ? s6 : best;
+            assigned = true;
+        }
+
+        if (s0valid && s0 == best) {
+            Q.push_back(make_pair(front, make_pair(x, make_pair(y - 1, z))));
+        }
+        if (s1valid && s1 == best) {
+            Q.push_back(make_pair(front, make_pair(x,
+                make_pair(y - 1, z - 1))));
+        }
+        if (s2valid && s2 == best) {
+            Q.push_back(make_pair(front, make_pair(x, make_pair(y, z - 1))));
+        }
+
+        if (s3valid && s3 == best) {
+            Q.push_back(make_pair(front,
+                make_pair(x - 1, make_pair(y, z))));
+        }
+        if (s4valid && s4 == best) {
+            Q.push_back(make_pair(front,
+                make_pair(x - 1, make_pair(y - 1, z))));
+        }
+        if (s5valid && s5 == best) {
+            Q.push_back(make_pair(front,
+                make_pair(x - 1, make_pair(y - 1, z - 1))));
+        }
+        if (s6valid && s6 == best) {
+            Q.push_back(make_pair(front,
+                make_pair(x - 1, make_pair(y, z - 1))));
+        }
+
+        // Pop the current node.
+        ++front;
+    }
+
+    front = Q[front].first;
+    while (front != -1) {
+        path.push_back(Q[front].second);
+        front = Q[front].first;
+    }
 }
 
 int main() {
@@ -373,14 +419,14 @@ int main() {
         swap(lv, lw);
     }
 
-    printf("%s %s %s\n", u + 1, v + 1, w + 1);
+    // printf("%s %s %s\n", u + 1, v + 1, w + 1);
 
 #ifndef TEST
-    int buffer[(MAXSTRLEN * 7 + 2) * MAXSTRLEN];
+    int buffer[(MAXSTRLEN * 3 + 2) * MAXSTRLEN];
 #else
     int rowUnit = (lu + 1);
     int pageUnit = (lv + 1) * (lw + 1);
-    int* buffer = (int*)malloc((7 * pageUnit + 2 * rowUnit) * sizeof(int));
+    int* buffer = (int*)malloc((3 * pageUnit + 2 * rowUnit) * sizeof(int));
 #endif
 
     Context ctx;
@@ -388,22 +434,14 @@ int main() {
 #ifndef TEST
     ctx.left = ctx.prev + MAXSTRLEN * MAXSTRLEN;
     ctx.right = ctx.left + MAXSTRLEN * MAXSTRLEN;
-    ctx.link0u = ctx.right + MAXSTRLEN * MAXSTRLEN;
-    ctx.link0vw = ctx.link0u + MAXSTRLEN * MAXSTRLEN;
-    ctx.link1u = ctx.link0vw + MAXSTRLEN * MAXSTRLEN;
-    ctx.link1vw = ctx.link1u + MAXSTRLEN * MAXSTRLEN;
 
-    ctx.pathv = ctx.link1vw + MAXSTRLEN * MAXSTRLEN;
+    ctx.pathv = ctx.right + MAXSTRLEN * MAXSTRLEN;
     ctx.pathw = ctx.pathv + MAXSTRLEN;
 #else
     ctx.left = ctx.prev + pageUnit;
     ctx.right = ctx.left + pageUnit;
-    ctx.link0u = ctx.right + pageUnit;
-    ctx.link0vw = ctx.link0u + pageUnit;
-    ctx.link1u = ctx.link0vw + pageUnit;
-    ctx.link1vw = ctx.link1u + pageUnit;
 
-    ctx.pathv = ctx.link1vw + pageUnit;
+    ctx.pathv = ctx.right + pageUnit;
     ctx.pathw = ctx.pathv + rowUnit;
 #endif
 
@@ -416,7 +454,9 @@ int main() {
 
     //--------------------------------------------------------------------------
 
-    Solve(&ctx, 0, 0, 0, lu, lv, lw);
+    int score = Solve(&ctx, 0, 0, 0, lu, lv, lw);
+
+    printf("score: %d\n", score);
 
 #if 0
     for (int i = 1; i < lu; ++i) {
@@ -430,6 +470,9 @@ int main() {
 #endif
     
     //--------------------------------------------------------------------------
+    vector<Position> path;
+    path.push_back(make_pair(0, make_pair(0, 0)));
+
     Initialize(&ctx, ctx.left,
         0, 0, lv, lw,
         1,
@@ -444,77 +487,31 @@ int main() {
             0, lv,
             0, lw);
         swap(ctx.left, ctx.prev);
+
+        auto last = path[path.size() - 1].second;
+        Trace(&ctx, path,
+            ctx.prev, ctx.left,
+            i - 1, last.first, last.second,
+            i, ctx.pathv[i], ctx.pathw[i]);
+    }
+    auto last = path[path.size() - 1].second;
+    if (last.first != lv - 1 || last.second != lw - 1) {
+        Trace(&ctx, path,
+            nullptr, ctx.left,
+            lu - 1, last.first, last.second,
+            lu - 1, lv - 1, lw - 1);
     }
 
     printf("reference score: %d\n", ctx.left[(lv - 1) * lw + lw - 1]);
 
     //--------------------------------------------------------------------------
-    vector<pair<int, int>> path, seg;
-    pair<int, int> last = make_pair(0, 0);
-    path.push_back(last);
-    Initialize(
-        &ctx,
-        ctx.link0u, ctx.link0vw,
-        ctx.left,
-        0, 0, lv, lw,
-        1,
-        0, lv,
-        0, lw);
-    for (int i = 1; i < lu; ++i) {
-        Step(&ctx,
-            ctx.link1u, ctx.link1vw,
-            ctx.left, ctx.prev,
-            i,
-            0, 0,
-            lv, lw,
-            1,
-            0, lv,
-            0, lw);
-
-        seg.clear();
-        int* linku = ctx.link1u;
-        int* linkvw = ctx.link1vw;
-        pair<int, int> c = make_pair(i, ctx.pathv[i] * lw + ctx.pathw[i]);
-        while (c != last) {
-            seg.push_back(c);
-            int px = linku[c.second];
-            int py = linkvw[c.second];
-            if (px != i) {
-                linku = ctx.link0u;
-                linkvw = ctx.link0vw;
-            }
-            c = make_pair(px, py);
-        }
-
-        for (int t = seg.size() - 1; t >= 0; --t) {
-            path.push_back(seg[t]);
-        }
-        last = make_pair(i, ctx.pathv[i] * lw + ctx.pathw[i]);
-
-        swap(ctx.left, ctx.prev);
-        swap(ctx.link0u, ctx.link1u);
-        swap(ctx.link0vw, ctx.link1vw);
-    }
-    seg.clear();
-    pair<int, int> c = make_pair(lu - 1, (lv - 1) * lw + lw - 1);
-    while (c != last) {
-        seg.push_back(c);
-        int px = ctx.link0u[c.second];
-        int py = ctx.link0vw[c.second];
-        c = make_pair(px, py);
-    }
-    for (int t = seg.size() - 1; t >= 0; --t) {
-        path.push_back(seg[t]);
-    }
-
 #if 0
-    for (int i = 0; i < path.size(); ++i) {
-        printf("%d %d %d\n", path[i].first,
-            path[i].second / lw, path[i].second % lw);
+    for (auto& q : path) {
+        printf("(%d %d %d)\n", q.first, q.second.first, q.second.first);
     }
 #endif
 
-    int total = 0, length = path.size() - 1, matches = 0;
+    int length = path.size() - 1, matches = 0;
     string au, av, aw;
     for (int q = 1, i = 1, j = 1, k = 1; q < path.size(); ++q) {
         char a = '_';
@@ -523,35 +520,37 @@ int main() {
             ++i;
         }
 
-        int v1 = path[q].second / lw;
-        int v0 = path[q - 1].second / lw;
+        int v1 = path[q].second.first;
+        int v0 = path[q - 1].second.first;
         char b = '_';
         if (v1 != v0) {
             b = v[j];
             ++j;
         }
 
-        int w1 = path[q].second % lw;
-        int w0 = path[q - 1].second % lw;
+        int w1 = path[q].second.second;
+        int w0 = path[q - 1].second.second;
         char c = '_';
         if (w1 != w0) {
             c = w[k];
             ++k;
         }
 
-        total += SPScore(a, b, c);
         if (a == b && b == c && a != '_') {
             ++matches;
         }
 
+#if 0
         au.push_back(a); au.push_back(' ');
         av.push_back(b); av.push_back(' ');
         aw.push_back(c); aw.push_back(' ');
+#endif
     }
 
-    printf("score: %d\nlength: %d\nmatches: %d\n", total, length, matches);
+    printf("length: %d\nmatches: %d\n", length, matches);
 
+#if 0
     printf("%s\n%s\n%s\n", au.c_str(), av.c_str(), aw.c_str());
-
+#endif
     return 0;
 }
