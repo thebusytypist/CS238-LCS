@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <vector>
 #include <string>
 
@@ -601,9 +602,15 @@ int main() {
 
     //--------------------------------------------------------------------------
 
+    time_t start = time(nullptr);
+
     int score = Solve(&ctx, 0, 0, 0, lu, lv, lw);
 
+    time_t end = time(nullptr);
+
     printf("score: %d\n", score);
+
+    printf("D&C time: %d secs\n", end - start);
 
 #if 0
     for (int i = 1; i < lu; ++i) {
