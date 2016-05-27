@@ -157,11 +157,12 @@ int Solve(Context* ctx, int x0, int y0, int x1, int y1) {
 void Trace(vector<pair<int, int>>& path,
     const int* prev, const int* cur,
     const char* u, const char* v,
-    int i, int y0, int y1) {
+    int x0, int y0,
+    int x1, int y1) {
     // pair<parent, pair<x, y>>
     typedef pair<int, pair<int, int>> Node;
     vector<Node> Q;
-    Q.push_back(make_pair(-1, make_pair(i, y1)));
+    Q.push_back(make_pair(-1, make_pair(x1, y1)));
     int front = 0;
 
     while (front < Q.size()) {
@@ -169,13 +170,13 @@ void Trace(vector<pair<int, int>>& path,
         int x = h.second.first;
         int y = h.second.second;
 
-        if (x == i - 1 && y == y0)
+        if (x == x0 && y == y0)
             break;
 
         int best = 0;
         bool assigned = false;
 
-        bool s0valid = x == i;
+        bool s0valid = x > x0;
         int s0 = 0;
         if (s0valid) {
             s0 = prev[y] + SPScore(u[x], '_');
@@ -183,7 +184,7 @@ void Trace(vector<pair<int, int>>& path,
             assigned = true;
         }
 
-        bool s1valid = x == i && y > y0;
+        bool s1valid = x > x0 && y > y0;
         int s1 = 0;
         if (s1valid) {
             s1 = prev[y - 1] + SPScore(u[x], v[y]);
@@ -194,7 +195,7 @@ void Trace(vector<pair<int, int>>& path,
         bool s2valid = y > y0;
         int s2 = 0;
         if (s2valid) {
-            const int* p = x == i ? cur : prev;
+            const int* p = x == x1 ? cur : prev;
             s2 = p[y - 1] + SPScore('_', v[y]);
             best = s2 > best || !assigned ? s2 : best;
             assigned = true;
@@ -271,7 +272,15 @@ int main(int argc, char* argv[]) {
             0, lv);
         swap(ctx.left, ctx.prev);
         int last = path[path.size() - 1].second;
-        Trace(path, ctx.prev, ctx.left, u, v, i, last, ctx.path[i]);
+        Trace(path, ctx.prev, ctx.left, u, v,
+            i - 1, last,
+            i, ctx.path[i]);
+    }
+    int last = path[path.size() - 1].second;
+    if (last != lv - 1) {
+        Trace(path, nullptr, ctx.left, u, v,
+            lu - 1, last,
+            lu - 1, lv - 1);
     }
     printf("reference score: %d\n", ctx.left[lv - 1]);
 
