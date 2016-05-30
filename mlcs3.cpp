@@ -2,6 +2,7 @@
 #include <tmmintrin.h>
 #include <algorithm>
 #include <utility>
+#include <thread>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -16,6 +17,7 @@ using std::make_pair;
 using std::pair;
 using std::vector;
 using std::string;
+using std::thread;
 
 const int SCORE_MATCH = 5;
 const int SCORE_MISMATCH = -4;
@@ -23,7 +25,8 @@ const int SCORE_INDEL = -8;
 const int SCORE_SPACES = 0;
 
 struct Context {
-    int* prev;
+    int* prev0;
+    int* prev1;
     int* left;
     int* right;
 
@@ -315,6 +318,47 @@ int Solve2(
     return l;
 }
 
+void ThreadForward(Context* ctx,
+    int m,
+    int x0, int y0, int z0,
+    int x1, int y1, int z1) {
+    Initialize(ctx, ctx->left, y0, z0, y1, z1, 1, y0, y1, z0, z1);
+    for (int i = x0 + 1; i <= m; ++i) {
+        Step(
+            ctx, ctx->left, ctx->prev0,
+            i,
+            y0, z0,
+            y1, z1,
+            1,
+            y0, y1,
+            z0, z1);
+        swap(ctx->left, ctx->prev0);
+    }
+}
+
+void ThreadBackward(Context* ctx,
+    int m,
+    int x0, int y0, int z0,
+    int x1, int y1, int z1) {
+    Initialize(ctx, ctx->right,
+        y1, z1, y0, z0,
+        -1,
+        y0 + 1, y1 + 1,
+        z0 + 1, z1 + 1);
+    for (int i = x1 - 1; i > m; --i) {
+        Step(
+            ctx, ctx->right, ctx->prev1,
+            i,
+            y1, z1,
+            y0, z0,
+            -1,
+            y0 + 1, y1 + 1,
+            z0 + 1, z1 + 1);
+        swap(ctx->right, ctx->prev1);
+    }
+}
+
+
 int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
     if (x1 - x0 <= 1)
         return 0;
@@ -326,7 +370,7 @@ int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
         }
 
         Solve2(ctx->pathw,
-            ctx->prev, ctx->left, ctx->right,
+            ctx->prev0, ctx->left, ctx->right,
             ctx->u, ctx->w,
             x0, z0, x1, z1);
         return 0;
@@ -337,7 +381,7 @@ int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
         }
 
         Solve2(ctx->pathv,
-            ctx->prev, ctx->left, ctx->right,
+            ctx->prev0, ctx->left, ctx->right,
             ctx->u, ctx->v,
             x0, y0, x1, y1);
         return 0;
@@ -345,35 +389,11 @@ int Solve(Context* ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
 
     int m = (x0 + x1) / 2;
 
-    Initialize(ctx, ctx->left, y0, z0, y1, z1, 1, y0, y1, z0, z1);
-    for (int i = x0 + 1; i <= m; ++i) {
-        Step(
-            ctx, ctx->left, ctx->prev,
-            i,
-            y0, z0,
-            y1, z1,
-            1,
-            y0, y1,
-            z0, z1);
-        swap(ctx->left, ctx->prev);
-    }
+    thread tforward(ThreadForward, ctx, m, x0, y0, z0, x1, y1, z1);
+    thread tbackward(ThreadBackward, ctx, m, x0, y0, z0, x1, y1, z1);
 
-    Initialize(ctx, ctx->right,
-        y1, z1, y0, z0,
-        -1,
-        y0 + 1, y1 + 1,
-        z0 + 1, z1 + 1);
-    for (int i = x1 - 1; i > m; --i) {
-        Step(
-            ctx, ctx->right, ctx->prev,
-            i,
-            y1, z1,
-            y0, z0,
-            -1,
-            y0 + 1, y1 + 1,
-            z0 + 1, z1 + 1);
-        swap(ctx->right, ctx->prev);
-    }
+    tforward.join();
+    tbackward.join();
 
     int dimz = ctx->dimw;
     int my = y0, mz = z0;
@@ -581,11 +601,13 @@ int main() {
     int rowUnit = (lu + 1);
     int padw = NextPowerOf2(lw + 1);
     int pageUnit = (lv + 1) * padw;
-    int* buffer = (int*)malloc((3 * pageUnit + 2 * rowUnit) * sizeof(int));
+    int bufferSize = (4 * pageUnit + 2 * rowUnit) * sizeof(int);
+    int* buffer = (int*)malloc(bufferSize);
 
     Context ctx;
-    ctx.prev = buffer;
-    ctx.left = ctx.prev + pageUnit;
+    ctx.prev0 = buffer;
+    ctx.prev1 = ctx.prev0 + pageUnit;
+    ctx.left = ctx.prev1 + pageUnit;
     ctx.right = ctx.left + pageUnit;
 
     ctx.pathv = ctx.right + pageUnit;
@@ -641,18 +663,18 @@ int main() {
         0, lv,
         0, lw);
     for (int i = 1; i < lu; ++i) {
-        Step(&ctx, ctx.left, ctx.prev,
+        Step(&ctx, ctx.left, ctx.prev0,
             i,
             0, 0,
             lv, lw,
             1,
             0, lv,
             0, lw);
-        swap(ctx.left, ctx.prev);
+        swap(ctx.left, ctx.prev0);
 
         auto last = path[path.size() - 1].second;
         Trace(&ctx, path,
-            ctx.prev, ctx.left,
+            ctx.prev0, ctx.left,
             i - 1, last.first, last.second,
             i, ctx.pathv[i], ctx.pathw[i]);
     }
@@ -714,6 +736,8 @@ int main() {
     end = time(nullptr);
 
     printf("Solution construction time: %d secs\n", end - start);
+
+    printf("Memory usage: %lf MB\n", (double)bufferSize / 1024 / 1024);
 
 #if 0
     printf("%s\n%s\n%s\n", au.c_str(), av.c_str(), aw.c_str());
