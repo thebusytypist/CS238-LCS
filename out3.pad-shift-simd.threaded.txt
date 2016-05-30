@@ -1,0 +1,7 @@
+score: 928
+D&C time: 713 secs
+reference score: 928
+length: 4926
+matches: 1899
+Solution construction time: 1020 secs
+Memory usage: 549.151085 MB
